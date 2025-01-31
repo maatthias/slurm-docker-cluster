@@ -1,3 +1,10 @@
+# forked from https://github.com/giovtorres/slurm-docker-cluster.git
+## Adapted to support
+- rocky9
+- support for cgroupsv2
+- slurm 24.05.4 (see `.env` file)
+- separate run steps for faster build with changes
+
 # Slurm Docker Cluster
 
 **Slurm Docker Cluster** is a multi-container Slurm cluster designed for rapid

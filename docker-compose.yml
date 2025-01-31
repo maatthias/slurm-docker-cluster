@@ -14,7 +14,7 @@ services:
       - slurm-network
 
   slurmdbd:
-    image: slurm-docker-cluster:${IMAGE_TAG}
+    image: maatthias/slurm-docker-cluster:latest
     build:
       context: .
       args:
@@ -34,7 +34,7 @@ services:
       - slurm-network
 
   slurmctld:
-    image: slurm-docker-cluster:${IMAGE_TAG}
+    image: maatthias/slurm-docker-cluster:latest
     command: ["slurmctld"]
     container_name: slurmctld
     hostname: slurmctld
@@ -51,8 +51,9 @@ services:
       - slurm-network
 
   c1:
-    image: slurm-docker-cluster:${IMAGE_TAG}
+    image: maatthias/slurm-docker-cluster:latest
     command: ["slurmd"]
+    # command: ["bash"]
     hostname: c1
     container_name: c1
     volumes:
@@ -68,7 +69,7 @@ services:
       - slurm-network
 
   c2:
-    image: slurm-docker-cluster:${IMAGE_TAG}
+    image: maatthias/slurm-docker-cluster:latest
     command: ["slurmd"]
     hostname: c2
     container_name: c2

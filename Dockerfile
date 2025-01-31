@@ -1,4 +1,4 @@
-FROM rockylinux:9
+FROM rockylinux/rockylinux:9
 
 LABEL org.opencontainers.image.source="https://github.com/giovtorres/slurm-docker-cluster" \
       org.opencontainers.image.title="slurm-docker-cluster" \
@@ -19,6 +19,8 @@ RUN set -ex \
        gcc-c++\
        git \
        gnupg \
+       dbus \
+       dbus-daemon \
        dbus-devel \
        libbpf \
        make \
@@ -53,9 +55,10 @@ RUN set -ex \
     && chmod +x /usr/local/bin/gosu \
     && gosu nobody true
 
-ARG SLURM_TAG
+ARG SLURM_TAG=slurm-24-05-4-1
 
-RUN set -x \
+# git clone and compile slurm
+RUN set -ex \
     && git clone -b ${SLURM_TAG} --single-branch --depth=1 https://github.com/SchedMD/slurm.git \
     && pushd slurm \
     && ./configure --enable-debug --prefix=/usr --sysconfdir=/etc/slurm \
@@ -65,17 +68,23 @@ RUN set -x \
     && install -D -m644 etc/slurm.conf.example /etc/slurm/slurm.conf.example \
     && install -D -m644 etc/slurmdbd.conf.example /etc/slurm/slurmdbd.conf.example \
     && install -D -m644 contribs/slurm_completion_help/slurm_completion.sh /etc/profile.d/slurm_completion.sh \
-    && popd \
+    && popd
+
+RUN set -ex \
     && rm -rf slurm \
     && groupadd -r --gid=990 slurm \
-    && useradd -r -g slurm --uid=990 slurm \
-    && mkdir /etc/sysconfig/slurm \
+    && useradd -r -g munge --uid=991 slurm
+
+RUN mkdir -p /etc/sysconfig/slurm \
         /var/spool/slurmd \
         /var/run/slurmd \
         /var/run/slurmdbd \
         /var/lib/slurmd \
         /var/log/slurm \
-        /data \
+        /mnt/slurm_state \
+        /data
+
+RUN set -x \
     && touch /var/lib/slurmd/node_state \
         /var/lib/slurmd/front_end_state \
         /var/lib/slurmd/job_state \
@@ -85,16 +94,44 @@ RUN set -x \
         /var/lib/slurmd/assoc_usage \
         /var/lib/slurmd/qos_usage \
         /var/lib/slurmd/fed_mgr_state \
+        /var/run/slurmctld.pid \
+        /var/run/slurmd.pid \
     && chown -R slurm:slurm /var/*/slurm* \
     && /sbin/create-munge-key
 
 COPY slurm.conf /etc/slurm/slurm.conf
 COPY slurmdbd.conf /etc/slurm/slurmdbd.conf
 COPY cgroup.conf /etc/slurm/cgroup.conf
+
 RUN set -x \
     && chown slurm:slurm /etc/slurm/slurmdbd.conf \
-    && chmod 600 /etc/slurm/slurmdbd.conf
+    && chmod 600 /etc/slurm/slurmdbd.conf \
+    && chown -R slurm:slurm /var/spool/slurm* \
+    # apparently rocky 9.4 defaults /etc permissions to 0777
+    # causing slurm service start to complain about group-writable 
+    # perms on /etc/munge/munge.key
+    && chmod 0755 /etc/
 
+# RUN set -x \
+#     && chown -R slurm:slurm /var/*/slurm* \
+#     && chmod -R 0755 /var/log/slurm/ \
+#     # && chown -R slurm:slurm /var/spool/slurm* \
+#     && chown slurm:slurm /var/run/slurmctld.pid \
+#     # && chown slurm:slurm /var/run/slurmd.pid \
+#     && chown -R slurm:slurm /mnt/slurm_state \
+#     && /sbin/create-munge-key \
+#     # apparently rocky 9.4 defaults /etc permissions to 0777
+#     # causing slurm service start to complain about perms on /etc/munge/munge.key
+#     && chmod 0755 /etc/
+
+# RUN set -x \
+#     && chown slurm:slurm /etc/slurm/slurmdbd.conf \
+#     && chmod 600 /etc/slurm/slurmdbd.conf
+
+# dbus stuff
+# RUN mkdir -p /var/run/dbus
+# RUN dbus-daemon --system --fork
+# RUN exec "$@"
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
