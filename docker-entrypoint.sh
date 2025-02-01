@@ -1,17 +1,11 @@
 #!/bin/bash
 set -e
 
+# echo "---> init systemd in container ..."
+# exec /usr/sbin/init
+
 if [ "$1" = "slurmdbd" ]
 then
-    echo "---> container starting with <slurmdbd> ..."
-
-    # echo "---> init systemd in container ..."
-    # exec /usr/sbin/init
-
-    echo "---> Starting the MUNGE Authentication service (munged) ..."
-    # sudo -u munge munged
-    systemctl start munge
-
     echo "---> Starting the Slurm Database Daemon (slurmdbd) ..."
 
     {
@@ -29,9 +23,6 @@ fi
 
 if [ "$1" = "slurmctld" ]
 then
-    echo "---> Starting the MUNGE Authentication service (munged) ..."
-    sudo -u munge munged
-
     echo "---> Waiting for slurmdbd to become active before starting slurmctld ..."
 
     until 2>/dev/null >/dev/tcp/slurmdbd/6819
@@ -42,7 +33,8 @@ then
     echo "-- slurmdbd is now active ..."
 
     echo "---> Starting the Slurm Controller Daemon (slurmctld) ..."
-    sudo -u slurm slurmctld -i -Dvvv
+    # sudo -u slurm slurmctld -i -Dvvv
+    systemctl start slurmctld
 fi
 
 if [ "$1" = "slurmd" ]
