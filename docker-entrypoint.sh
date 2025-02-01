@@ -3,8 +3,14 @@ set -e
 
 if [ "$1" = "slurmdbd" ]
 then
+    echo "---> container starting with <slurmdbd> ..."
+
+    # echo "---> init systemd in container ..."
+    # exec /usr/sbin/init
+
     echo "---> Starting the MUNGE Authentication service (munged) ..."
-    sudo -u munge munged
+    # sudo -u munge munged
+    systemctl start munge
 
     echo "---> Starting the Slurm Database Daemon (slurmdbd) ..."
 
@@ -17,7 +23,8 @@ then
         done
     }
     echo "-- Database is now active ..."
-    sudo -u slurm slurmdbd -Dvvv
+    # sudo -u slurm slurmdbd -Dvvv
+    systemctl start slurmdbd
 fi
 
 if [ "$1" = "slurmctld" ]

@@ -2,8 +2,9 @@
 ## Adapted to support
 - fedora 41
 - support for cgroupsv2
+    - using podman for systemd support
 - slurm 24.05.4 (see `.env` file)
-- separate run steps for faster build with changes
+- deliberate separation of run steps for faster build with changes
 
 # Slurm Docker Cluster
 

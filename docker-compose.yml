@@ -1,6 +1,7 @@
 services:
   mysql:
-    image: mariadb:10.11
+    # image: mariadb:10.11
+    image: docker.io/library/mariadb:10.11
     hostname: mysql
     container_name: mysql
     environment:
@@ -14,7 +15,8 @@ services:
       - slurm-network
 
   slurmdbd:
-    image: maatthias/slurm-docker-cluster:latest
+    # image: maatthias/slurm-docker-cluster:latest
+    image: localhost/slurm-docker-cluster:latest
     build:
       context: .
       args:
@@ -34,7 +36,8 @@ services:
       - slurm-network
 
   slurmctld:
-    image: maatthias/slurm-docker-cluster:latest
+    # image: maatthias/slurm-docker-cluster:latest
+    image: localhost/slurm-docker-cluster:latest
     command: ["slurmctld"]
     container_name: slurmctld
     hostname: slurmctld
@@ -51,7 +54,8 @@ services:
       - slurm-network
 
   c1:
-    image: maatthias/slurm-docker-cluster:latest
+    # image: maatthias/slurm-docker-cluster:latest
+    image: localhost/slurm-docker-cluster:latest
     command: ["slurmd"]
     hostname: c1
     container_name: c1
@@ -68,7 +72,8 @@ services:
       - slurm-network
 
   c2:
-    image: maatthias/slurm-docker-cluster:latest
+    # image: maatthias/slurm-docker-cluster:latest
+    image: localhost/slurm-docker-cluster:latest
     command: ["slurmd"]
     hostname: c2
     container_name: c2

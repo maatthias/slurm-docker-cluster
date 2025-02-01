@@ -129,7 +129,16 @@ RUN mkdir -p /var/lib/slurmd \
 RUN mkdir -p /var/spool/slurmd \
     && chown -R slurm:slurm /var/spool/slurmd
 
-# RUN mkdir -p /sys/fs/cgroup/system.slice/slurmstepd.scope
+# rootless cgroup muckery
+# RUN whoami && id && id -g
+# USER root
+# RUN sudo umount /sys/fs/cgroup
+# RUN mount -t cgroup2 -o rw,seclabel,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot 0 0 /sys/fs/cgroup
+
+
+# RUN mkdir -p /sys/fs/cgroup/ \
+#     && chown -R slurm:slurm /sys/fs/cgroup/ \
+#     && chmod -R 0777 /sys/fs/cgroup/
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
