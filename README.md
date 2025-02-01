@@ -1,6 +1,6 @@
 # forked from https://github.com/giovtorres/slurm-docker-cluster.git
 ## Adapted to support
-- rocky9
+- fedora 41
 - support for cgroupsv2
 - slurm 24.05.4 (see `.env` file)
 - separate run steps for faster build with changes
