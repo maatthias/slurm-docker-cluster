@@ -1,0 +1,123 @@
+services:
+  mysql:
+    image: docker.io/library/mariadb
+    hostname: mysql
+    container_name: mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: slurm_acct_db
+      MYSQL_USER: slurm
+      MYSQL_PASSWORD: password
+    volumes:
+      - var_lib_mysql:/var/lib/mysql
+    networks:
+      - slurm-network
+
+  slurmdbd:
+    image: localhost/slurmddbd
+    command: ["systemctl start slurmdbd"]
+    build:
+      context: .
+      containerfile: Containerfile
+      args:
+        SLURM_TAG: ${SLURM_TAG}
+    healthcheck:
+      test: ["CMD", "systemctl", "is-active", "slurmdbd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: slurmdbd
+    hostname: slurmdbd
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6819"
+    networks:
+      - slurm-network
+
+  slurmctld:
+    image: localhost/slurmctld
+    command: ["systemctl start slurmctld"]
+    build:
+      context: .
+      containerfile: Containerfile
+      args:
+        SLURM_TAG: ${SLURM_TAG}
+    healthcheck:
+      test: ["CMD", "systemctl", "is-active", "slurmctld"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: slurmctld
+    hostname: slurmctld
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6817"
+    depends_on:
+      slurmdbd:
+        condition: service_healthy
+    networks:
+      - slurm-network
+
+  c1:
+    image: localhost/slurmd
+    command: "systemctl start slurmd"
+    build:
+      context: .
+      containerfile: Containerfile
+      args:
+        SLURM_TAG: ${SLURM_TAG}
+    hostname: c1
+    container_name: c1
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6818"
+    depends_on:
+      slurmctld:
+        condition: service_healthy
+    networks:
+      - slurm-network
+
+  c2:
+    image: localhost/slurmd
+    command: "systemctl start slurmd"
+    build:
+      context: .
+      containerfile: Containerfile
+      args:
+        SLURM_TAG: ${SLURM_TAG}
+    hostname: c2
+    container_name: c2
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6818"
+    depends_on:
+      slurmctld:
+        condition: service_healthy
+    networks:
+      - slurm-network
+
+volumes:
+  etc_munge:
+  etc_slurm:
+  slurm_jobdir:
+  var_lib_mysql:
+  var_log_slurm:
+
+networks:
+  slurm-network:
+    driver: bridge

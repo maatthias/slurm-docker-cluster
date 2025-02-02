@@ -1,4 +1,4 @@
-FROM fedora:41
+FROM fedora:41 AS slurm-podman-cluster
 
 RUN set -ex \
     && dnf makecache \
@@ -31,6 +31,7 @@ RUN dnf -y install dnf-plugins-core \
         mariadb-server \
         # munge contains munged daemon, mungekey executable, and client executables (munge, unmunge, and remunge)
         munge \
+        munge-devel \
         munge-libs \
         openssl \
         pam-devel \
@@ -41,12 +42,49 @@ RUN dnf -y install dnf-plugins-core \
         python3-pip \
         python3 \
         readline-devel \
+        slurm-slurmctld \
+        slurm-slurmd \
+        slurm-slurmdbd \
         systemd \
         vim-enhanced \
         wget \
         zlib \
     && dnf clean all \
     && rm -rf /var/cache/dnf
+
+ARG SLURM_TAG=slurm-24-11-1-1
+
+RUN set -ex \
+    && git clone -b ${SLURM_TAG} --single-branch --depth=1 https://github.com/SchedMD/slurm.git \
+    && pushd slurm \
+    && ./configure --enable-debug --prefix=/usr --sysconfdir=/etc/slurm \
+        --with-mysql_config=/usr/bin  --libdir=/usr/lib64 \
+    && make install \
+    && install -D -m644 etc/cgroup.conf.example /etc/slurm/cgroup.conf.example \
+    && install -D -m644 etc/slurm.conf.example /etc/slurm/slurm.conf.example \
+    && install -D -m644 etc/slurmdbd.conf.example /etc/slurm/slurmdbd.conf.example \
+    && install -D -m644 contribs/slurm_completion_help/slurm_completion.sh /etc/profile.d/slurm_completion.sh \
+    && popd \
+    && rm -rf slurm \
+    && groupadd -r --gid=990 slurm \
+    && useradd -r -g slurm --uid=990 slurm
+
+RUN mkdir /etc/sysconfig/slurm \
+        /var/spool/slurmd \
+        /var/run/slurmd \
+        /var/run/slurmdbd \
+        /var/lib/slurmd \
+        /data \
+    && touch /var/lib/slurmd/node_state \
+        /var/lib/slurmd/front_end_state \
+        /var/lib/slurmd/job_state \
+        /var/lib/slurmd/resv_state \
+        /var/lib/slurmd/trigger_state \
+        /var/lib/slurmd/assoc_mgr_state \
+        /var/lib/slurmd/assoc_usage \
+        /var/lib/slurmd/qos_usage \
+        /var/lib/slurmd/fed_mgr_state \
+    && chown -R slurm:slurm /var/*/slurm*
 
 ARG MUNGE_VERSION=0.5.13
 
@@ -63,33 +101,49 @@ RUN make
 RUN make check
 RUN make install
 
-ARG SLURM_VERSION=24.11.1
-
-RUN mkdir -p /home/slurm
-
-WORKDIR /home/slurm
-RUN set -ex \
-    && wget https://download.schedmd.com/slurm/slurm-${SLURM_VERSION}.tar.bz2 \
-    && bzip2 --decompress slurm-${SLURM_VERSION}.tar.bz2 \
-    && tar xf slurm-${SLURM_VERSION}.tar
-
-WORKDIR /home/slurm/slurm-${SLURM_VERSION}
-
-RUN ./configure \
-    --sysconfdir=/etc/slurm/
-RUN make
-RUN make install
-
-RUN groupadd -r --gid=990 slurm \
-    && useradd -r -g slurm --uid=990 slurm
+RUN sudo -u munge /usr/sbin/mungekey --verbose
 
 COPY slurm.conf /etc/slurm/slurm.conf
-COPY cgroup.conf /etc/slurm/cgroup.conf
 COPY slurmdbd.conf /etc/slurm/slurmdbd.conf
-RUN chown slurm:slurm /etc/slurm/slurmdbd.conf \
-    && chmod 0600 /etc/slurm/slurmdbd.conf
+COPY cgroup.conf /etc/slurm/cgroup.conf
+RUN set -x \
+    && chown slurm:slurm /etc/slurm/slurmdbd.conf \
+    && chmod 600 /etc/slurm/slurmdbd.conf
 
-RUN sudo -u munge /usr/sbin/mungekey --verbose
+RUN mkdir -p /etc/sysconfig/slurm \
+        /var/spool/slurmd \
+        /var/run/slurmd \
+        /var/run/slurmdbd \
+        /var/lib/slurmd \
+        /var/log/slurm \
+        /data \
+    && touch /var/lib/slurmd/node_state \
+        /var/lib/slurmd/front_end_state \
+        /var/lib/slurmd/job_state \
+        /var/lib/slurmd/resv_state \
+        /var/lib/slurmd/trigger_state \
+        /var/lib/slurmd/assoc_mgr_state \
+        /var/lib/slurmd/assoc_usage \
+        /var/lib/slurmd/qos_usage \
+        /var/lib/slurmd/fed_mgr_state \
+    && chown -R slurm:slurm /var/*/slurm*
+
 RUN systemctl enable munge
+
+FROM slurm-podman-cluster AS slurmdbd
+
+RUN systemctl enable slurmdbd
+
+ENTRYPOINT ["/usr/sbin/init"]
+
+FROM slurm-podman-cluster AS slurmctld
+
+RUN systemctl enable slurmctld
+
+ENTRYPOINT ["/usr/sbin/init"]
+
+FROM slurm-podman-cluster AS slurmd
+
+RUN systemctl enable slurmd
 
 ENTRYPOINT ["/usr/sbin/init"]

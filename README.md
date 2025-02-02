@@ -1,6 +1,7 @@
 # forked from https://github.com/giovtorres/slurm-docker-cluster.git
 ## Adapted to support
 - fedora 41
+- podman
 - support for cgroupsv2
     - using podman for systemd support
 - slurm 24.05.4 (see `.env` file)
