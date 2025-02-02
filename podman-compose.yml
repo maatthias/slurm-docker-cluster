@@ -14,7 +14,7 @@ services:
       - slurm-network
 
   slurmdbd:
-    image: localhost/slurmddbd
+    image: localhost/slurmdbd
     command: ["systemctl start slurmdbd"]
     build:
       context: .
@@ -39,10 +39,10 @@ services:
 
   slurmctld:
     image: localhost/slurmctld
-    command: ["systemctl start slurmctld"]
+    command: ["sleep 30 && systemctl start slurmctld"]
     build:
       context: .
-      containerfile: Containerfile
+      containerfile: Containerfile:slurmctld
       args:
         SLURM_TAG: ${SLURM_TAG}
     healthcheck:
@@ -70,7 +70,7 @@ services:
     command: "systemctl start slurmd"
     build:
       context: .
-      containerfile: Containerfile
+      containerfile: Containerfile:slurmd
       args:
         SLURM_TAG: ${SLURM_TAG}
     hostname: c1
@@ -93,7 +93,7 @@ services:
     command: "systemctl start slurmd"
     build:
       context: .
-      containerfile: Containerfile
+      containerfile: Containerfile:slurmd
       args:
         SLURM_TAG: ${SLURM_TAG}
     hostname: c2

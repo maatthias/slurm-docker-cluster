@@ -1,4 +1,4 @@
-FROM fedora:41 AS slurm-podman-cluster
+FROM fedora:41 AS slurm
 
 RUN set -ex \
     && dnf makecache \
@@ -52,6 +52,16 @@ RUN dnf -y install dnf-plugins-core \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
+RUN groupadd -r --gid=990 slurm \
+    && useradd -r -g slurm --uid=990 slurm
+
+COPY slurm.conf /etc/slurm/slurm.conf
+COPY slurmdbd.conf /etc/slurm/slurmdbd.conf
+COPY cgroup.conf /etc/slurm/cgroup.conf
+RUN set -x \
+    && chown slurm:slurm /etc/slurm/slurmdbd.conf \
+    && chmod 600 /etc/slurm/slurmdbd.conf
+    
 ARG SLURM_TAG=slurm-24-11-1-1
 
 RUN set -ex \
@@ -60,14 +70,12 @@ RUN set -ex \
     && ./configure --enable-debug --prefix=/usr --sysconfdir=/etc/slurm \
         --with-mysql_config=/usr/bin  --libdir=/usr/lib64 \
     && make install \
-    && install -D -m644 etc/cgroup.conf.example /etc/slurm/cgroup.conf.example \
-    && install -D -m644 etc/slurm.conf.example /etc/slurm/slurm.conf.example \
-    && install -D -m644 etc/slurmdbd.conf.example /etc/slurm/slurmdbd.conf.example \
-    && install -D -m644 contribs/slurm_completion_help/slurm_completion.sh /etc/profile.d/slurm_completion.sh \
+    # && install -D -m644 /etc/slurm/cgroup.conf \
+    # && install -D -m644 /etc/slurm/slurm.conf \
+    # && install -D -m644 /etc/slurm/slurmdbd.conf \
+    # && install -D -m644 contribs/slurm_completion_help/slurm_completion.sh /etc/profile.d/slurm_completion.sh \
     && popd \
-    && rm -rf slurm \
-    && groupadd -r --gid=990 slurm \
-    && useradd -r -g slurm --uid=990 slurm
+    && rm -rf slurm
 
 RUN mkdir /etc/sysconfig/slurm \
         /var/spool/slurmd \
@@ -103,13 +111,6 @@ RUN make install
 
 RUN sudo -u munge /usr/sbin/mungekey --verbose
 
-COPY slurm.conf /etc/slurm/slurm.conf
-COPY slurmdbd.conf /etc/slurm/slurmdbd.conf
-COPY cgroup.conf /etc/slurm/cgroup.conf
-RUN set -x \
-    && chown slurm:slurm /etc/slurm/slurmdbd.conf \
-    && chmod 600 /etc/slurm/slurmdbd.conf
-
 RUN mkdir -p /etc/sysconfig/slurm \
         /var/spool/slurmd \
         /var/run/slurmd \
@@ -130,19 +131,19 @@ RUN mkdir -p /etc/sysconfig/slurm \
 
 RUN systemctl enable munge
 
-FROM slurm-podman-cluster AS slurmdbd
+FROM slurm AS slurmdbd
 
 RUN systemctl enable slurmdbd
 
 ENTRYPOINT ["/usr/sbin/init"]
 
-FROM slurm-podman-cluster AS slurmctld
+FROM slurm AS slurmctld
 
 RUN systemctl enable slurmctld
 
 ENTRYPOINT ["/usr/sbin/init"]
 
-FROM slurm-podman-cluster AS slurmd
+FROM slurm AS slurmd
 
 RUN systemctl enable slurmd
 
